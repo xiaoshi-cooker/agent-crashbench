@@ -36,10 +36,15 @@ observable outcomes (they are the subject matter of this project).
 
 ## Out of scope (this commit → later P1/P2)
 
-Timeout enforcement (`TIMEOUT` status), JSON-Schema argument validation,
-retry-with-backoff for `retryable`, idempotency keys, intent journal,
-MCP client. The signature already carries `timeout_s`/`parameters` so these
-land without interface breaks.
+JSON-Schema argument validation, retry-with-backoff for `retryable`,
+idempotency keys, intent journal, MCP client. The signature already carries
+`parameters` so these land without interface breaks.
+
+Timeout semantics (shipped): effective budget = min(registered `timeout_s`,
+call `timeout_s`); overruns return `TIMEOUT`/`retryable`. CPython cannot
+kill the worker thread, so an overrun tool may keep running in the
+background — the gate reports honestly; hard isolation is process-level and
+belongs to the bench (and the v0.2 sandbox).
 
 ## Test plan
 

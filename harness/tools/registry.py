@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Any
 
@@ -83,8 +84,29 @@ class ToolRegistry:
                 error=f"unknown tool: {call.name}",
                 elapsed_ms=elapsed_ms(),
             )
+
+        # Both the registered budget and the caller's are upper bounds.
+        effective_timeout = min(spec.timeout_s, call.timeout_s)
+        executor = ThreadPoolExecutor(max_workers=1)
         try:
-            content = spec.fn(**call.args)
+            future = executor.submit(spec.fn, **call.args)
+            try:
+                content = future.result(timeout=effective_timeout)
+            except TimeoutError:
+                if future.done():
+                    # The tool itself raised TimeoutError; classify like any
+                    # other exception rather than as a budget overrun.
+                    raise
+                # CPython cannot kill the worker thread; the call may keep
+                # running in the background. Real isolation is the bench's
+                # process-level job — the gate only reports honestly.
+                return ToolResult(
+                    call_id=call.id,
+                    status=ToolStatus.TIMEOUT,
+                    error_kind=ErrorKind.RETRYABLE,
+                    error=f"timed out after {effective_timeout}s",
+                    elapsed_ms=elapsed_ms(),
+                )
         except ToolError as exc:
             return ToolResult(
                 call_id=call.id,
@@ -101,6 +123,8 @@ class ToolRegistry:
                 error=f"{type(exc).__name__}: {exc}",
                 elapsed_ms=elapsed_ms(),
             )
+        finally:
+            executor.shutdown(wait=False)
         return ToolResult(
             call_id=call.id,
             status=ToolStatus.OK,

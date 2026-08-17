@@ -76,3 +76,39 @@ def test_elapsed_ms_recorded(registry):
     registry.register("slow", lambda: time.sleep(0.02))
     result = registry.invoke(ToolCall(id="c6", name="slow", args={}))
     assert result.elapsed_ms >= 10
+
+
+def test_timeout_enforced(registry):
+    import time
+
+    registry.register("hang", lambda: time.sleep(2.0), timeout_s=0.05)
+    result = registry.invoke(ToolCall(id="c7", name="hang", args={}))
+    assert result.status is ToolStatus.TIMEOUT
+    assert result.error_kind is ErrorKind.RETRYABLE
+    assert "timed out after 0.05s" in result.error
+    assert result.elapsed_ms >= 40
+
+
+def test_call_timeout_tightens_registered_budget(registry):
+    import time
+
+    registry.register("napper", lambda: time.sleep(0.5), timeout_s=30.0)
+    result = registry.invoke(ToolCall(id="c8", name="napper", args={}, timeout_s=0.05))
+    assert result.status is ToolStatus.TIMEOUT
+
+
+def test_tool_raising_timeouterror_is_not_a_budget_overrun(registry):
+    def impatient():
+        raise TimeoutError("internal deadline")
+
+    registry.register("impatient", impatient)
+    result = registry.invoke(ToolCall(id="c9", name="impatient", args={}))
+    assert result.status is ToolStatus.ERROR  # not TIMEOUT
+    assert result.error_kind is ErrorKind.FATAL
+    assert "internal deadline" in result.error
+
+
+def test_fast_tool_unaffected_by_timeout(registry):
+    result = registry.invoke(ToolCall(id="c10", name="add", args={"a": 1, "b": 1}, timeout_s=5.0))
+    assert result.status is ToolStatus.OK
+    assert result.content == 2
