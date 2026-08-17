@@ -20,6 +20,7 @@ from harness.core.types import (
     Turn,
 )
 from harness.llm.base import LLMBackend
+from harness.persist.checkpoint import CheckpointNotFound, FileCheckpointStore
 from harness.tools.registry import ToolRegistry
 from harness.trace.jsonl import TraceWriter
 
@@ -48,11 +49,13 @@ class AgentLoop:
         tools: ToolRegistry,
         trace: TraceWriter,
         max_steps: int = 20,
+        checkpoints: FileCheckpointStore | None = None,
     ) -> None:
         self.backend = backend
         self.tools = tools
         self.trace = trace
         self.max_steps = max_steps
+        self.checkpoints = checkpoints
 
         self.task: Task | None = None
         self.turns: list[Turn] = []
@@ -75,6 +78,51 @@ class AgentLoop:
         while self.step():
             pass
         return self.result()
+
+    def continue_run(self) -> RunResult:
+        """Finish a run rebuilt by :meth:`restore`."""
+        while self.step():
+            pass
+        return self.result()
+
+    # -- persistence -------------------------------------------------------
+
+    def snapshot(self) -> dict[str, Any]:
+        assert self.task is not None
+        return {
+            "task": self.task.to_dict(),
+            "turns": [t.to_dict() for t in self.turns],
+            "step_count": self.step_count,
+            "status": str(self.status),
+            "final_answer": self.final_answer,
+        }
+
+    @classmethod
+    def restore(
+        cls,
+        backend: LLMBackend,
+        tools: ToolRegistry,
+        trace: TraceWriter,
+        checkpoints: FileCheckpointStore,
+        ckpt_id: str | None = None,
+        max_steps: int = 20,
+    ) -> AgentLoop:
+        """Rebuild a loop from a stored checkpoint of ``trace.run_id``."""
+        ck = checkpoints.select(trace.run_id, ckpt_id)
+        if ck is None:
+            raise CheckpointNotFound(f"run {trace.run_id}: no checkpoints to restore")
+        loop = cls(backend, tools, trace, max_steps=max_steps, checkpoints=checkpoints)
+        payload = ck.payload
+        loop.task = Task.from_dict(payload["task"])
+        loop.turns = [Turn.from_dict(t) for t in payload["turns"]]
+        loop.step_count = int(payload["step_count"])
+        loop.status = TaskStatus(payload["status"])
+        loop.final_answer = payload.get("final_answer", "")
+        trace.emit(
+            EventType.RUN_START,
+            {"resumed": True, "ckpt_id": ck.ckpt_id, "step": ck.step},
+        )
+        return loop
 
     def result(self) -> RunResult:
         assert self.task is not None
@@ -136,6 +184,17 @@ class AgentLoop:
                     role=Role.TOOL,
                     content=canonical_json(result.to_dict()),
                 )
+            )
+
+        if self.checkpoints is not None:
+            ck = self.checkpoints.save(
+                run_id=self.trace.run_id,
+                step=self.step_count,
+                payload=self.snapshot(),
+            )
+            self.trace.emit(
+                EventType.CHECKPOINT,
+                {"ckpt_id": ck.ckpt_id, "step": ck.step, "payload_sha256": ck.payload_sha256},
             )
         return True
 
