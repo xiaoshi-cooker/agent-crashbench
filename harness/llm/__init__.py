@@ -2,5 +2,13 @@
 
 from harness.llm.backends.mock import MockBackend
 from harness.llm.base import LLMBackend, LLMResponse, ScriptExhausted
+from harness.llm.cassette import Cassette, CassetteMiss
 
-__all__ = ["LLMBackend", "LLMResponse", "ScriptExhausted", "MockBackend"]
+__all__ = [
+    "LLMBackend",
+    "LLMResponse",
+    "ScriptExhausted",
+    "MockBackend",
+    "Cassette",
+    "CassetteMiss",
+]
