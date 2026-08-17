@@ -61,4 +61,4 @@ run_start is recorded.
 
 | Date | State | Note |
 |------|-------|------|
-| 2026-08-18 | building | |
+| 2026-08-18 | shipped (P1 scope) | |

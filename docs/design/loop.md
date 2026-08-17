@@ -56,3 +56,4 @@ all later phases; interfaces stay open via events and the tools registry.
 | Date | State | Note |
 |------|-------|------|
 | 2026-08-17 | draft | implement after trace + mock land |
+| 2026-08-18 | shipped (P1 scope) | message assembly stayed inline; context module deferred to P2 |

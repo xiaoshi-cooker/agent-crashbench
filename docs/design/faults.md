@@ -58,4 +58,4 @@ error is fed back and the run recovers, with `fault_injected` in the trace.
 
 | Date | State | Note |
 |------|-------|------|
-| 2026-08-18 | building | |
+| 2026-08-18 | shipped (P1 scope) | |

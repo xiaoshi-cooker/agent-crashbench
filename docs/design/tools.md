@@ -57,3 +57,4 @@ raises; specs shape; elapsed_ms recorded.
 | Date | State | Note |
 |------|-------|------|
 | 2026-08-18 | building | registry + classification first |
+| 2026-08-18 | shipped (P1 scope) | timeout enforcement landed same day |

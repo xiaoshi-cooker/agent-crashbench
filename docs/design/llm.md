@@ -50,3 +50,4 @@ router design doc).
 | Date | State | Note |
 |------|-------|------|
 | 2026-08-17 | building | mock first; cassette next commit |
+| 2026-08-18 | shipped (P1 scope) | mock + cassette landed; HTTP backend is P2 (router) |
