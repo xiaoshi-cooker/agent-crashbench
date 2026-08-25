@@ -31,6 +31,12 @@ lost verified progress, no silently rebuilt state. This repo makes that
 measurable, first for its own harness, then for external runtimes via
 adapters (LangGraph first).
 
+## Author
+
+Independent research project by [xiaoshi-cooker](https://github.com/xiaoshi-cooker),
+started August 2026. Companion design-notes column (Chinese):
+[《Agent 系统札记——从模型能力到长期执行、验证与治理》](https://www.zhihu.com/column/c_2065406370380358318).
+
 ## License
 
 Apache-2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
